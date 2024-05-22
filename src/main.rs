@@ -95,12 +95,25 @@ fn group(data: Vec<u8>) -> Vec<[u8; BLOCK_SIZE]> {
 
 /// Does the opposite of the group function
 fn un_group(blocks: Vec<[u8; BLOCK_SIZE]>) -> Vec<u8> {
-    todo!()
+    let mut data = Vec::new();
+    for block in blocks {
+        data.extend_from_slice(&block);
+    }
+    data
 }
 
 /// Does the opposite of the pad function.
 fn un_pad(data: Vec<u8>) -> Vec<u8> {
-    todo!()
+    if data.is_empty() {
+        return data;
+    }
+    
+    let pad_len = data[data.len() - 1] as usize;
+    if pad_len == 0 || pad_len > BLOCK_SIZE {
+        return data;
+    }
+
+    data[..data.len() - pad_len].to_vec()
 }
 
 /// The first mode we will implement is the Electronic Code Book, or ECB mode.
@@ -111,12 +124,28 @@ fn un_pad(data: Vec<u8>) -> Vec<u8> {
 /// One good thing about this mode is that it is parallelizable. But to see why it is
 /// insecure look at: https://www.ubiqsecurity.com/wp-content/uploads/2022/02/ECB2.png
 fn ecb_encrypt(plain_text: Vec<u8>, key: [u8; 16]) -> Vec<u8> {
-    todo!()
+    let padded = pad(plain_text);
+    let blocks = group(padded);
+    let mut encrypted_blocks = Vec::new();
+    
+    for block in blocks {
+        encrypted_blocks.push(aes_encrypt(block, &key));
+    }
+    
+    ungroup(encrypted_blocks)
 }
 
 /// Opposite of ecb_encrypt.
 fn ecb_decrypt(cipher_text: Vec<u8>, key: [u8; BLOCK_SIZE]) -> Vec<u8> {
-    todo!()
+    let blocks = group(cipher_text);
+    let mut decrypted_blocks = Vec::new();
+    
+    for block in blocks {
+        decrypted_blocks.push(aes_decrypt(block, &key));
+    }
+    
+    let decrypted = ungroup(decrypted_blocks);
+    unpad(decrypted)
 }
 
 /// The next mode, which you can implement on your own is cipherblock chaining.
@@ -134,11 +163,51 @@ fn ecb_decrypt(cipher_text: Vec<u8>, key: [u8; BLOCK_SIZE]) -> Vec<u8> {
 fn cbc_encrypt(plain_text: Vec<u8>, key: [u8; BLOCK_SIZE]) -> Vec<u8> {
     // Remember to generate a random initialization vector for the first block.
 
-    todo!()
+    let padded = pad(plain_text);
+    let iv = [0u8; BLOCK_SIZE];
+
+    let mut cipher_text = iv.to_vec();
+    let mut previous_block = iv;
+    let cipher = Aes128::new(&GenericArray::from(key));
+
+    for block in group(padded) {
+        let xored_block = xor_blocks(&block, &previous_block);
+        let encrypted_block = aes_encrypt(xored_block, &key);
+        cipher_text.extend_from_slice(&encrypted_block);
+        previous_block = encrypted_block;
+    }
+
+    cipher_text
 }
 
 fn cbc_decrypt(cipher_text: Vec<u8>, key: [u8; BLOCK_SIZE]) -> Vec<u8> {
-    todo!()
+    if cipher_text.len() < BLOCK_SIZE {
+        return Vec::new();
+    }
+
+    let iv = &cipher_text[..BLOCK_SIZE];
+    let cipher_blocks = group(cipher_text[BLOCK_SIZE..].to_vec());
+    let cipher = Aes128::new(&GenericArray::from(key));
+
+    let mut decrypted = Vec::new();
+    let mut previous_block = iv.to_vec();
+
+    for block in cipher_blocks {
+        let decrypted_block = aes_decrypt(block, &key);
+        let xored_block = xor_blocks(&decrypted_block, previous_block.as_slice().try_into().unwrap());
+        decrypted.extend_from_slice(&xored_block);
+        previous_block = block.to_vec();
+    }
+
+    unpad(decrypted)
+}
+
+fn xor_blocks(a: &[u8; BLOCK_SIZE], b: &[u8; BLOCK_SIZE]) -> [u8; BLOCK_SIZE] {
+    let mut result = [0u8; BLOCK_SIZE];
+    for i in 0..BLOCK_SIZE {
+        result[i] = a[i] ^ b[i];
+    }
+    result
 }
 
 /// Another mode which you can implement on your own is counter mode.
