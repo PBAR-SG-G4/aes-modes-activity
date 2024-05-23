@@ -228,9 +228,60 @@ fn xor_blocks(a: &[u8; BLOCK_SIZE], b: &[u8; BLOCK_SIZE]) -> [u8; BLOCK_SIZE] {
 /// inserted as the first block of the ciphertext.
 fn ctr_encrypt(plain_text: Vec<u8>, key: [u8; BLOCK_SIZE]) -> Vec<u8> {
     // Remember to generate a random nonce
-    todo!()
+    let nonce = [0u8; 8];
+    let cipher = Aes128::new(&GenericArray::from(key));
+
+    let mut cipher_text = nonce.to_vec();
+    let mut counter: u64 = 0;
+
+    for block in plain_text.chunks(BLOCK_SIZE) {
+        let mut v = [0u8; BLOCK_SIZE];
+
+        v[..8].copy_from_slice(&nonce);
+        v[8..].copy_from_slice(&counter.to_le_bytes());
+
+        let encrypted_v = aes_encrypt(v, &key);
+        let mut cipher_block = vec![0u8; block.len()];
+
+        for i in 0..block.len() {
+            cipher_block[i] = block[i] ^ encrypted_v[i];
+        }
+
+        cipher_text.extend_from_slice(&cipher_block);
+        counter += 1;
+    }
+
+    cipher_text
 }
 
 fn ctr_decrypt(cipher_text: Vec<u8>, key: [u8; BLOCK_SIZE]) -> Vec<u8> {
-    todo!()
+    if cipher_text.len() < 8 {
+        return Vec::new();
+    }
+
+    let nonce = &cipher_text[..8];
+    let cipher_blocks = &cipher_text[8..];
+    let cipher = Aes128::new(&GenericArray::from(key));
+
+    let mut plain_text = Vec::new();
+    let mut counter: u64 = 0;
+
+    for block in cipher_blocks.chunks(BLOCK_SIZE) {
+        let mut v = [0u8; BLOCK_SIZE];
+
+        v[..8].copy_from_slice(&nonce);
+        v[8..].copy_from_slice(&counter.to_le_bytes());
+
+        let encrypted_v = aes_encrypt(v, &key);
+
+        let mut plain_block = vec![0u8; block.len()];
+        for i in 0..block.len() {
+            plain_block[i] = block[i] ^ encrypted_v[i];
+        }
+
+        plain_text.extend_from_slice(&plain_block);
+        counter += 1;
+    }
+
+    plain_text
 }
