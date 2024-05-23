@@ -11,6 +11,7 @@
 //! it is not secure and make the point that the most straight-forward approach isn't always the
 //! best, and can sometimes be trivially broken.
 
+#![allow(unused_imports)]
 use aes::{
     cipher::{generic_array::GenericArray, BlockCipher, BlockDecrypt, BlockEncrypt, KeyInit},
     Aes128,
@@ -168,7 +169,6 @@ fn cbc_encrypt(plain_text: Vec<u8>, key: [u8; BLOCK_SIZE]) -> Vec<u8> {
 
     let mut cipher_text = iv.to_vec();
     let mut previous_block = iv;
-    let cipher = Aes128::new(&GenericArray::from(key));
 
     for block in group(padded) {
         let xored_block = xor_blocks(&block, &previous_block);
@@ -187,7 +187,6 @@ fn cbc_decrypt(cipher_text: Vec<u8>, key: [u8; BLOCK_SIZE]) -> Vec<u8> {
 
     let iv = &cipher_text[..BLOCK_SIZE];
     let cipher_blocks = group(cipher_text[BLOCK_SIZE..].to_vec());
-    let cipher = Aes128::new(&GenericArray::from(key));
 
     let mut decrypted = Vec::new();
     let mut previous_block = iv.to_vec();
@@ -232,7 +231,6 @@ fn xor_blocks(a: &[u8; BLOCK_SIZE], b: &[u8; BLOCK_SIZE]) -> [u8; BLOCK_SIZE] {
 fn ctr_encrypt(plain_text: Vec<u8>, key: [u8; BLOCK_SIZE]) -> Vec<u8> {
     // Remember to generate a random nonce
     let nonce = [0u8; 8];
-    let cipher = Aes128::new(&GenericArray::from(key));
 
     let mut cipher_text = nonce.to_vec();
     let mut counter: u64 = 0;
@@ -264,7 +262,6 @@ fn ctr_decrypt(cipher_text: Vec<u8>, key: [u8; BLOCK_SIZE]) -> Vec<u8> {
 
     let nonce = &cipher_text[..8];
     let cipher_blocks = &cipher_text[8..];
-    let cipher = Aes128::new(&GenericArray::from(key));
 
     let mut plain_text = Vec::new();
     let mut counter: u64 = 0;
